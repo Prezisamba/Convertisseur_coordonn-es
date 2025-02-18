@@ -3,49 +3,374 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Importation de Coordonnées</title>
+    <title>Convertisseur de Coordonnées</title>
+    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="styles.css" rel="stylesheet">
+    <style>
+        body {
+            padding: 20px;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+        .utility {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #555;
+        }
+        .utility a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        .utility a:hover {
+            text-decoration: underline;
+        }
+        .history-item {
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #f1f1f1;
+            border-radius: 5px;
+        }
+    </style>
 </head>
 <body>
+    
     <div class="container">
-        <h1 class="text-center mb-4">Importation de Coordonnées</h1>
-        <form id="importForm">
-            <div class="mb-3">
-                <label for="fileInput" class="form-label">Importer un fichier (CSV ou JSON) :</label>
-                <input type="file" id="fileInput" class="form-control" accept=".csv, .json">
-            </div>
+        <h1 class="text-center mb-4">Convertisseur de Coordonnées</h1>
+        <div class="language-selector">
+            <label for="language">Langue :</label>
+            <select id="language">
+              <option value="fr">Français</option>
+              <option value="en">English</option>
+            </select>
+          </div><br>
+
+        <form id="converterForm">
             <div class="mb-3">
                 <label for="conversionType" class="form-label">Type de conversion :</label>
                 <select id="conversionType" class="form-select">
-                    <option value="dms_to_dd">DMS vers DD</option>
-                    <option value="dd_to_dms">DD vers DMS</option>
-                    <option value="dd_to_grad">DD vers Grades</option>
-                    <option value="dd_to_rad">DD vers Radians</option>
-                    <option value="geo_to_cart">Géographiques vers Cartésiennes</option>
-                    <option value="cart_to_geo">Cartésiennes vers Géographiques</option>
+                    <option value="dms_to_dd">Degré, Minute, Seconde (DMS) vers Degré Décimal (DD)</option>
+                    <option value="dd_to_dms">Degré Décimal (DD) vers Degré, Minute, Seconde (DMS)</option>
+                    <option value="dd_to_grad">Degré Décimal (DD) vers Grades</option>
+                    <option value="dd_to_rad">Degré Décimal (DD) vers Radians</option>
+                    <option value="geo_to_cart">Coordonnées Géographiques (Latitude, Longitude, Altitude) vers Coordonnées Cartésiennes (X, Y, Z)</option>
+                    <option value="cart_to_geo">Coordonnées Cartésiennes (X, Y, Z) vers Coordonnées Géographiques (Latitude, Longitude, Altitude)</option>
                 </select>
             </div>
-            <button type="button" class="btn btn-primary w-100" onclick="handleFileImport()">Importer et Convertir</button>
+
+            <!-- Inputs pour Degré, Minute, Seconde (DMS) -->
+            <div id="dmsInput" class="mb-3">
+                <label for="dmsLatitude" class="form-label">Latitude DMS (ex: 48°51'29.9"N) :</label>
+                <input type="text" id="dmsLatitude" class="form-control" placeholder="48°51'29.9&quot;N">
+                <label for="dmsLongitude" class="form-label">Longitude DMS (ex: 2°17'40.2"E) :</label>
+                <input type="text" id="dmsLongitude" class="form-control" placeholder="2°17'40.2&quot;E">
+            </div>
+
+            <!-- Inputs pour Degré Décimal (DD) -->
+            <div id="ddInput" class="mb-3" style="display: none;">
+                <label for="ddLatitude" class="form-label">Latitude en Degré Décimal (DD) (ex: 48.8583) :</label>
+                <input type="number" id="ddLatitude" class="form-control" step="0.0001" placeholder="48.8583">
+                <label for="ddLongitude" class="form-label">Longitude en Degré Décimal (DD) (ex: 2.2945) :</label>
+                <input type="number" id="ddLongitude" class="form-control" step="0.0001" placeholder="2.2945">
+                <label for="altitude" class="form-label">Altitude (m) :</label>
+                <input type="number" id="altitude" class="form-control" step="0.1" placeholder="0">
+            </div>
+
+            <!-- Inputs pour Coordonnées Cartésiennes (X, Y, Z) -->
+            <div id="cartInput" class="mb-3" style="display: none;">
+                <label for="xCoord" class="form-label">Coordonnée X :</label>
+                <input type="number" id="xCoord" class="form-control" step="0.1" placeholder="X">
+                <label for="yCoord" class="form-label">Coordonnée Y :</label>
+                <input type="number" id="yCoord" class="form-control" step="0.1" placeholder="Y">
+                <label for="zCoord" class="form-label">Coordonnée Z :</label>
+                <input type="number" id="zCoord" class="form-control" step="0.1" placeholder="Z">
+            </div>
+
+            <button type="button" class="btn btn-primary w-100" onclick="convertCoordinates()">Convertir</button>
         </form>
 
-        <button class="btn btn-danger mt-3" onclick="reloadPage()">🔄 Recharger la Page</button>
-
         <div class="result" id="result">
-            <h2>Résultats de la conversion :</h2>
-            <div id="output"></div>
+            <h4>Résultat :</h4>
+            <p id="output"></p>
+            <div id="utilities" class="utility"></div>
             <p id="error" class="error"></p>
         </div>
 
-        <button id="exportCSV" class="btn btn-success mt-3" onclick="exportResults('csv')">📄 Exporter en CSV</button>
-        <button id="exportJSON" class="btn btn-warning mt-3" onclick="exportResults('json')">📝 Exporter en JSON</button>
-        <br><br>
+        <div class="history" id="history">
+            <h4>Historique des conversions :</h4>
+            <div id="historyList"></div>
+        </div><br>
 
-        <a href="/" class="btn-retour">🏠 Retour à l'accueil</a>
+       <div style="background-color: #007bff;border-radius: 15px; text-align: center;">
+        <h4>Pour importer des coordonnées</h4>
+        <a href="index1.html" class="btn-retour"><h5 style="color: white;">👉 Cliquez ici</h5></a>
+       </div>
         <h5 style="text-align:right; color:green">SIDBE_SAMBA/2025</h5>
     </div>
 
+    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="script.js"></script>
+    <script>
+        // Constantes WGS84
+        const a = 6378137; // Demi-grand axe (m)
+        const e2 = 0.00669437999014; // Excentricité au carré
+
+        // Variables pour l'historique
+        let history = [];
+
+        // Afficher/masquer les champs en fonction du type de conversion
+        document.getElementById('conversionType').addEventListener('change', function() {
+            const conversionType = this.value;
+            document.getElementById('dmsInput').style.display = 'none';
+            document.getElementById('ddInput').style.display = 'none';
+            document.getElementById('cartInput').style.display = 'none';
+
+            if (conversionType === 'dms_to_dd') {
+                document.getElementById('dmsInput').style.display = 'block';
+            } else if (conversionType === 'geo_to_cart') {
+                document.getElementById('ddInput').style.display = 'block';
+            } else if (conversionType === 'cart_to_geo') {
+                document.getElementById('cartInput').style.display = 'block';
+            } else {
+                document.getElementById('ddInput').style.display = 'block';
+            }
+            document.getElementById('error').textContent = ''; // Effacer les erreurs
+        });
+
+        // Fonction pour convertir Degré, Minute, Seconde (DMS) en Degré Décimal (DD)
+        function dmsToDD(degrees, minutes, seconds, direction) {
+            let dd = parseFloat(degrees) + parseFloat(minutes) / 60 + parseFloat(seconds) / 3600;
+            if (direction === 'S' || direction === 'W') {
+                dd *= -1;
+            }
+            return dd;
+        }
+
+        // Fonction pour convertir Degré Décimal (DD) en Degré, Minute, Seconde (DMS)
+        function ddToDMS(dd, isLatitude) {
+            const absolute = Math.abs(dd);
+            const degrees = Math.floor(absolute);
+            const minutes = Math.floor((absolute - degrees) * 60);
+            const seconds = ((absolute - degrees - minutes / 60) * 3600).toFixed(2);
+            const direction = dd >= 0 ? (isLatitude ? 'N' : 'E') : (isLatitude ? 'S' : 'W');
+            return `${degrees}°${minutes}'${seconds}"${direction}`;
+        }
+
+        // Fonction pour convertir Degré Décimal (DD) en Grades
+        function ddToGrad(dd) {
+            return (dd * 10 / 9).toFixed(6); // 1 grade = 0.9 degré
+        }
+
+        // Fonction pour convertir Degré Décimal (DD) en Radians
+        function ddToRad(dd) {
+            return (dd * Math.PI / 180).toFixed(6); // 1 radian = 180/π degrés
+        }
+
+        // Fonction pour convertir Coordonnées Géographiques en Coordonnées Cartésiennes
+        function geoToCart(lat, lon, h) {
+            const φ = (lat * Math.PI) / 180; // Latitude en radians
+            const λ = (lon * Math.PI) / 180; // Longitude en radians
+            const N = a / Math.sqrt(1 - e2 * Math.sin(φ) ** 2); // Rayon de courbure
+            const X = (N + h) * Math.cos(φ) * Math.cos(λ);
+            const Y = (N + h) * Math.cos(φ) * Math.sin(λ);
+            const Z = (N * (1 - e2) + h) * Math.sin(φ);
+            return { X, Y, Z };
+        }
+
+        // Fonction pour convertir Coordonnées Cartésiennes en Coordonnées Géographiques
+        function cartToGeo(X, Y, Z) {
+            const p = Math.sqrt(X ** 2 + Y ** 2);
+            let φ = Math.atan2(Z, p * (1 - e2));
+            let N = a / Math.sqrt(1 - e2 * Math.sin(φ) ** 2);
+            let h = p / Math.cos(φ) - N;
+
+            // Itération pour améliorer la précision
+            for (let i = 0; i < 5; i++) {
+                N = a / Math.sqrt(1 - e2 * Math.sin(φ) ** 2);
+                h = p / Math.cos(φ) - N;
+                φ = Math.atan2(Z, p * (1 - e2 * (N / (N + h))));
+            }
+
+            const λ = Math.atan2(Y, X);
+            return {
+                lat: (φ * 180) / Math.PI, // Latitude en degrés
+                lon: (λ * 180) / Math.PI, // Longitude en degrés
+                h, // Altitude en mètres
+            };
+        }
+
+        // Fonction pour afficher les utilités après conversion
+        function showUtilities(conversionType, result) {
+            const utilitiesDiv = document.getElementById('utilities');
+            utilitiesDiv.innerHTML = '';
+
+            if (conversionType === 'dms_to_dd' || conversionType === 'dd_to_dms') {
+                const [lat, lon] = result.split(', ');
+                utilitiesDiv.innerHTML += `
+                    <p><strong>Localisation :</strong> <a href="https://www.google.com/maps?q=${lat},${lon}" target="_blank">Voir sur Google Maps</a></p>
+                    <p><strong>Hémisphère :</strong> ${lat >= 0 ? 'Nord' : 'Sud'}, ${lon >= 0 ? 'Est' : 'Ouest'}</p>
+                `;
+            } else if (conversionType === 'geo_to_cart') {
+                utilitiesDiv.innerHTML += `
+                    <p><strong>Utilisation :</strong> Ces coordonnées cartésiennes sont utilisées dans des systèmes de référence 3D.</p>
+                `;
+            } else if (conversionType === 'cart_to_geo') {
+                const { lat, lon } = result;
+                utilitiesDiv.innerHTML += `
+                    <p><strong>Localisation :</strong> <a href="https://www.google.com/maps?q=${lat},${lon}" target="_blank">Voir sur Google Maps</a></p>
+                    <p><strong>Hémisphère :</strong> ${lat >= 0 ? 'Nord' : 'Sud'}, ${lon >= 0 ? 'Est' : 'Ouest'}</p>
+                `;
+            }
+        }
+
+        // Fonction pour ajouter une entrée à l'historique
+        function addToHistory(conversionType, input, output) {
+            history.push({ conversionType, input, output });
+            if (history.length > 5) history.shift(); // Limiter l'historique à 5 entrées
+            const historyList = document.getElementById('historyList');
+            historyList.innerHTML = history.map((item, index) => `
+                <div class="history-item">
+                    <strong>Conversion ${index + 1} :</strong> ${item.conversionType}<br>
+                    <strong>Entrée :</strong> ${item.input}<br>
+                    <strong>Résultat :</strong> ${item.output}
+                </div>
+            `).join('');
+        }
+
+        // Fonction principale pour gérer la conversion
+        function convertCoordinates() {
+            const conversionType = document.getElementById('conversionType').value;
+            let result = '';
+            let error = '';
+
+            try {
+                if (conversionType === 'dms_to_dd') {
+                    const dmsLatitude = document.getElementById('dmsLatitude').value.trim();
+                    const dmsLongitude = document.getElementById('dmsLongitude').value.trim();
+
+                    const latParts = dmsLatitude.match(/(\d+)[°](\d+)['](\d+\.?\d*)["]([N|S])/);
+                    const lonParts = dmsLongitude.match(/(\d+)[°](\d+)['](\d+\.?\d*)["]([E|W])/);
+
+                    if (latParts && lonParts) {
+                        const latDD = dmsToDD(latParts[1], latParts[2], latParts[3], latParts[4]);
+                        const lonDD = dmsToDD(lonParts[1], lonParts[2], lonParts[3], lonParts[4]);
+                        result = `${latDD.toFixed(6)}, ${lonDD.toFixed(6)}`;
+                        document.getElementById('output').textContent = `Latitude en Degré Décimal (DD) : ${latDD.toFixed(6)}, Longitude en Degré Décimal (DD) : ${lonDD.toFixed(6)}`;
+                        showUtilities(conversionType, result);
+                        addToHistory(conversionType, `Latitude: ${dmsLatitude}, Longitude: ${dmsLongitude}`, `Latitude DD: ${latDD.toFixed(6)}, Longitude DD: ${lonDD.toFixed(6)}`);
+                    } else {
+                        error = "Format DMS invalide. Utilisez le format 48°51'29.9\"N.";
+                    }
+                } else if (conversionType === 'geo_to_cart') {
+                    const lat = parseFloat(document.getElementById('ddLatitude').value);
+                    const lon = parseFloat(document.getElementById('ddLongitude').value);
+                    const h = parseFloat(document.getElementById('altitude').value);
+
+                    if (!isNaN(lat) && !isNaN(lon) && !isNaN(h)) {
+                        const { X, Y, Z } = geoToCart(lat, lon, h);
+                        result = `X = ${X.toFixed(2)}, Y = ${Y.toFixed(2)}, Z = ${Z.toFixed(2)}`;
+                        document.getElementById('output').textContent = `Coordonnées Cartésiennes (X, Y, Z) : ${result}`;
+                        showUtilities(conversionType, result);
+                        addToHistory(conversionType, `Latitude: ${lat}, Longitude: ${lon}, Altitude: ${h}`, `X: ${X.toFixed(2)}, Y: ${Y.toFixed(2)}, Z: ${Z.toFixed(2)}`);
+                    } else {
+                        error = "Veuillez entrer des valeurs valides pour la latitude, longitude et altitude.";
+                    }
+                } else if (conversionType === 'cart_to_geo') {
+                    const X = parseFloat(document.getElementById('xCoord').value);
+                    const Y = parseFloat(document.getElementById('yCoord').value);
+                    const Z = parseFloat(document.getElementById('zCoord').value);
+
+                    if (!isNaN(X) && !isNaN(Y) && !isNaN(Z)) {
+                        const { lat, lon, h } = cartToGeo(X, Y, Z);
+                        result = { lat, lon };
+                        document.getElementById('output').textContent = `Coordonnées Géographiques : Latitude = ${lat.toFixed(6)}, Longitude = ${lon.toFixed(6)}, Altitude = ${h.toFixed(2)} m`;
+                        showUtilities(conversionType, result);
+                        addToHistory(conversionType, `X: ${X}, Y: ${Y}, Z: ${Z}`, `Latitude: ${lat.toFixed(6)}, Longitude: ${lon.toFixed(6)}, Altitude: ${h.toFixed(2)} m`);
+                    } else {
+                        error = "Veuillez entrer des valeurs valides pour X, Y et Z.";
+                    }
+                } else {
+                    const ddLatitude = parseFloat(document.getElementById('ddLatitude').value);
+                    const ddLongitude = parseFloat(document.getElementById('ddLongitude').value);
+
+                    if (!isNaN(ddLatitude) && !isNaN(ddLongitude)) {
+                        if (conversionType === 'dd_to_dms') {
+                            const latDMS = ddToDMS(ddLatitude, true);
+                            const lonDMS = ddToDMS(ddLongitude, false);
+                            result = `${latDMS}, ${lonDMS}`;
+                            document.getElementById('output').textContent = `Latitude en Degré, Minute, Seconde (DMS) : ${latDMS}, Longitude en Degré, Minute, Seconde (DMS) : ${lonDMS}`;
+                            showUtilities(conversionType, result);
+                            addToHistory(conversionType, `Latitude DD: ${ddLatitude}, Longitude DD: ${ddLongitude}`, `Latitude DMS: ${latDMS}, Longitude DMS: ${lonDMS}`);
+                        } else if (conversionType === 'dd_to_grad') {
+                            const latGrad = ddToGrad(ddLatitude);
+                            const lonGrad = ddToGrad(ddLongitude);
+                            result = `${latGrad}, ${lonGrad}`;
+                            document.getElementById('output').textContent = `Latitude en Grades : ${latGrad}, Longitude en Grades : ${lonGrad}`;
+                            addToHistory(conversionType, `Latitude DD: ${ddLatitude}, Longitude DD: ${ddLongitude}`, `Latitude Grades: ${latGrad}, Longitude Grades: ${lonGrad}`);
+                        } else if (conversionType === 'dd_to_rad') {
+                            const latRad = ddToRad(ddLatitude);
+                            const lonRad = ddToRad(ddLongitude);
+                            result = `${latRad}, ${lonRad}`;
+                            document.getElementById('output').textContent = `Latitude en Radians : ${latRad}, Longitude en Radians : ${lonRad}`;
+                            addToHistory(conversionType, `Latitude DD: ${ddLatitude}, Longitude DD: ${ddLongitude}`, `Latitude Radians: ${latRad}, Longitude Radians: ${lonRad}`);
+                        }
+                    } else {
+                        error = "Veuillez entrer des valeurs valides pour la latitude et la longitude en Degré Décimal (DD).";
+                    }
+                }
+            } catch (e) {
+                error = "Une erreur s'est produite lors de la conversion.";
+            }
+
+            document.getElementById('error').textContent = error;
+        }
+
+
+
+        // Fonction pour charger les traductions
+async function loadTranslations(lang) {
+  const response = await fetch(`locales/${lang}.json`);
+  return await response.json();
+}
+
+// Fonction pour mettre à jour l'interface utilisateur avec les traductions
+function updateUI(translations) {
+  document.querySelector("h1").textContent = translations.title;
+  document.querySelector('label[for="conversionType"]').textContent = translations.conversionTypeLabel;
+  document.querySelector('label[for="dmsLatitude"]').textContent = translations.dmsLatitudeLabel;
+  document.querySelector('label[for="dmsLongitude"]').textContent = translations.dmsLongitudeLabel;
+  document.querySelector('label[for="ddLatitude"]').textContent = translations.ddLatitudeLabel;
+  document.querySelector('label[for="ddLongitude"]').textContent = translations.ddLongitudeLabel;
+  document.querySelector('label[for="altitude"]').textContent = translations.altitudeLabel;
+  document.querySelector('button[onclick="convertCoordinates()"]').textContent = translations.convertButton;
+  document.querySelector("#result h2").textContent = translations.resultTitle;
+  document.querySelector("#history h2").textContent = translations.historyTitle;
+}
+
+// Gérer le changement de langue
+document.getElementById("language").addEventListener("change", async (event) => {
+  const lang = event.target.value;
+  const translations = await loadTranslations(lang);
+  updateUI(translations);
+});
+
+// Charger la langue par défaut au démarrage
+(async function init() {
+  const defaultLang = "fr"; // Langue par défaut
+  const translations = await loadTranslations(defaultLang);
+  updateUI(translations);
+})();
+
+
+
+
+    </script>
 </body>
 </html>

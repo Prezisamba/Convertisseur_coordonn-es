@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Importation de Coordonnées</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="styles.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4">Importation de Coordonnées</h1>
+        <form id="importForm">
+            <div class="mb-3">
+                <label for="fileInput" class="form-label">Importer un fichier (CSV ou JSON) :</label>
+                <input type="file" id="fileInput" class="form-control" accept=".csv, .json">
+            </div>
+            <div class="mb-3">
+                <label for="conversionType" class="form-label">Type de conversion :</label>
+                <select id="conversionType" class="form-select">
+                    <option value="dms_to_dd">DMS vers DD</option>
+                    <option value="dd_to_dms">DD vers DMS</option>
+                    <option value="dd_to_grad">DD vers Grades</option>
+                    <option value="dd_to_rad">DD vers Radians</option>
+                    <option value="geo_to_cart">Géographiques vers Cartésiennes</option>
+                    <option value="cart_to_geo">Cartésiennes vers Géographiques</option>
+                </select>
+            </div>
+            <button type="button" class="btn btn-primary w-100" onclick="handleFileImport()">Importer et Convertir</button>
+        </form>
+
+        <button class="btn btn-danger mt-3" onclick="reloadPage()">🔄 Recharger la Page</button>
+
+        <div class="result" id="result">
+            <h2>Résultats de la conversion :</h2>
+            <div id="output"></div>
+            <p id="error" class="error"></p>
+        </div>
+
+        <button id="exportCSV" class="btn btn-success mt-3" onclick="exportResults('csv')">📄 Exporter en CSV</button>
+        <button id="exportJSON" class="btn btn-warning mt-3" onclick="exportResults('json')">📝 Exporter en JSON</button>
+        <br><br>
+
+        <a href="/" class="btn-retour">🏠 Retour à l'accueil</a>
+        <h5 style="text-align:right; color:green">SIDBE_SAMBA/2025</h5>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
