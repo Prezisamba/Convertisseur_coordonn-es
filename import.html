@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Importation de Coordonnées</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding: 20px;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+        .btn-retour {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+        .btn-retour:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4">Importation de Coordonnées</h1>
+        <form id="importForm">
+            <div class="mb-3">
+                <label for="fileInput" class="form-label">Importer un fichier (CSV ou JSON) :</label>
+                <input type="file" id="fileInput" class="form-control" accept=".csv, .json">
+            </div>
+            <div class="mb-3">
+                <label for="conversionType" class="form-label">Type de conversion :</label>
+                <select id="conversionType" class="form-select">
+                    <option value="dms_to_dd">DMS vers DD</option>
+                    <option value="dd_to_dms">DD vers DMS</option>
+                    <option value="dd_to_grad">DD vers Grades</option>
+                    <option value="dd_to_rad">DD vers Radians</option>
+                    <option value="geo_to_cart">Géographiques vers Cartésiennes</option>
+                    <option value="cart_to_geo">Cartésiennes vers Géographiques</option>
+                </select>
+            </div>
+            <button type="button" class="btn btn-primary w-100" onclick="handleFileImport()">Importer et Convertir</button>
+        </form>
+
+        <button class="btn btn-danger mt-3" onclick="reloadPage()">🔄 Recharger la Page</button>
+
+        <div class="result" id="result">
+            <h2>Résultats de la conversion :</h2>
+            <div id="output"></div>
+            <p id="error" class="error"></p>
+        </div>
+
+        <button id="exportCSV" class="btn btn-success mt-3" onclick="exportResults('csv')">📄 Exporter les résultats en CSV</button>
+        <button id="exportJSON" class="btn btn-warning mt-3" onclick="exportResults('json')">📝 Exporter les résultats en JSON</button> <br> <br>
+
+        <a href="app1.html" class="btn-retour">🏠 Retour à l'accueil</a>
+
+        <h5 style="text-align:right; color:green">SIDBE_SAMBA/2025</h5>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        function reloadPage() {
+            location.reload(); // Recharge la page entièrement
+        }
+
+        // Fonctions de conversion (exemples simplifiés)
+        function dmsToDD(degrees, minutes, seconds, direction) {
+            let dd = parseFloat(degrees) + parseFloat(minutes) / 60 + parseFloat(seconds) / 3600;
+            if (direction === 'S' || direction === 'W') {
+                dd *= -1;
+            }
+            return dd;
+        }
+
+        function ddToDMS(dd, isLatitude) {
+            const absolute = Math.abs(dd);
+            const degrees = Math.floor(absolute);
+            const minutes = Math.floor((absolute - degrees) * 60);
+            const seconds = ((absolute - degrees - minutes / 60) * 3600).toFixed(2);
+            const direction = dd >= 0 ? (isLatitude ? 'N' : 'E') : (isLatitude ? 'S' : 'W');
+            return `${degrees}°${minutes}'${seconds}"${direction}`;
+        }
+
+        function ddToGrad(dd) {
+            return (dd * 10 / 9).toFixed(6); // 1 grade = 0.9 degré
+        }
+
+        function ddToRad(dd) {
+            return (dd * Math.PI / 180).toFixed(6); // 1 radian = 180/π degrés
+        }
+
+        function geoToCart(lat, lon, h = 0) {
+            const φ = (lat * Math.PI) / 180; // Latitude en radians
+            const λ = (lon * Math.PI) / 180; // Longitude en radians
+            const a = 6378137; // Demi-grand axe (m)
+            const e2 = 0.00669437999014; // Excentricité au carré
+            const N = a / Math.sqrt(1 - e2 * Math.sin(φ) ** 2); // Rayon de courbure
+            const X = (N + h) * Math.cos(φ) * Math.cos(λ);
+            const Y = (N + h) * Math.cos(φ) * Math.sin(λ);
+            const Z = (N * (1 - e2) + h) * Math.sin(φ);
+            return { X, Y, Z };
+        }
+
+        function cartToGeo(X, Y, Z) {
+            const a = 6378137; // Demi-grand axe (m)
+            const e2 = 0.00669437999014; // Excentricité au carré
+            const p = Math.sqrt(X ** 2 + Y ** 2);
+            let φ = Math.atan2(Z, p * (1 - e2));
+            let N = a / Math.sqrt(1 - e2 * Math.sin(φ) ** 2);
+            let h = p / Math.cos(φ) - N;
+
+            // Itération pour améliorer la précision
+            for (let i = 0; i < 5; i++) {
+                N = a / Math.sqrt(1 - e2 * Math.sin(φ) ** 2);
+                h = p / Math.cos(φ) - N;
+                φ = Math.atan2(Z, p * (1 - e2 * (N / (N + h))));
+            }
+
+            const λ = Math.atan2(Y, X);
+            return {
+                lat: (φ * 180) / Math.PI, // Latitude en degrés
+                lon: (λ * 180) / Math.PI, // Longitude en degrés
+                h, // Altitude en mètres
+            };
+        }
+
+        // Fonction pour gérer l'importation de fichier
+        function handleFileImport() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            const conversionType = document.getElementById('conversionType').value;
+
+            if (!file) {
+                document.getElementById('error').textContent = "Veuillez sélectionner un fichier.";
+                return;
+            }
+
+            if (!file.name.endsWith('.csv') && !file.name.endsWith('.json')) {
+                document.getElementById('error').textContent = "Format de fichier non supporté. Veuillez importer un fichier CSV ou JSON.";
+                return;
+            }
+
+            const reader = new FileReader();
+
+            reader.onload = function (event) {
+                const content = event.target.result;
+                let coordinates;
+
+                try {
+                    if (file.name.endsWith('.csv')) {
+                        coordinates = parseCSV(content);
+                    } else if (file.name.endsWith('.json')) {
+                        coordinates = JSON.parse(content);
+                    }
+
+                    // Convertir les coordonnées en fonction du type de conversion
+                    const results = coordinates.map(coord => {
+                        let converted;
+                        switch (conversionType) {
+                            case 'dms_to_dd':
+                                const latParts = coord.latitude.match(/(\d+)[°](\d+)['](\d+\.?\d*)["]([N|S])/);
+                                const lonParts = coord.longitude.match(/(\d+)[°](\d+)['](\d+\.?\d*)["]([E|W])/);
+                                if (!latParts || !lonParts) {
+                                    throw new Error("Format DMS invalide.");
+                                }
+                                converted = {
+                                    latitudeDD: dmsToDD(latParts[1], latParts[2], latParts[3], latParts[4]),
+                                    longitudeDD: dmsToDD(lonParts[1], lonParts[2], lonParts[3], lonParts[4]),
+                                };
+                                break;
+                            case 'dd_to_dms':
+                                converted = {
+                                    latitudeDMS: ddToDMS(coord.latitude, true),
+                                    longitudeDMS: ddToDMS(coord.longitude, false),
+                                };
+                                break;
+                            case 'dd_to_grad':
+                                converted = {
+                                    latitudeGrad: ddToGrad(coord.latitude),
+                                    longitudeGrad: ddToGrad(coord.longitude),
+                                };
+                                break;
+                            case 'dd_to_rad':
+                                converted = {
+                                    latitudeRad: ddToRad(coord.latitude),
+                                    longitudeRad: ddToRad(coord.longitude),
+                                };
+                                break;
+                            case 'geo_to_cart':
+                                converted = geoToCart(coord.latitude, coord.longitude, coord.altitude || 0);
+                                break;
+                            case 'cart_to_geo':
+                                converted = cartToGeo(coord.X, coord.Y, coord.Z);
+                                break;
+                            default:
+                                throw new Error("Type de conversion non supporté.");
+                        }
+                        return { ...coord, ...converted };
+                    });
+
+                    // Afficher les résultats
+                    displayResults(results);
+                } catch (error) {
+                    document.getElementById('error').textContent = "Erreur lors de la conversion : " + error.message;
+                }
+            };
+
+            reader.readAsText(file);
+        }
+
+        // Fonction pour parser un fichier CSV
+        function parseCSV(content) {
+            const separator = content.includes(';') ? ';' : ','; // Détecte si le séparateur est "," ou ";"
+            const lines = content.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+            
+            if (lines.length < 2) {
+                throw new Error("Le fichier CSV ne contient pas de données valides.");
+            }
+
+            const headers = lines[0].split(separator).map(header => header.trim());
+            const coordinates = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(separator).map(value => value.trim());
+
+                if (values.length !== headers.length) {
+                    console.warn(`Ligne ignorée (mauvais format) : ${lines[i]}`);
+                    continue; // Ignore les lignes avec un nombre incorrect de colonnes
+                }
+
+                let coord = {};
+                headers.forEach((header, index) => {
+                    let value = values[index];
+
+                    // Vérifier si la valeur est un nombre
+                    if (!isNaN(value) && value.trim() !== "") {
+                        value = parseFloat(value);
+                    }
+
+                    coord[header] = value;
+                });
+
+                coordinates.push(coord);
+            }
+
+            return coordinates;
+        }
+
+        // Fonction pour afficher les résultats
+        function displayResults(results) {
+            const outputDiv = document.getElementById('output');
+            outputDiv.innerHTML = '';
+
+            if (results.length === 0) {
+                outputDiv.innerHTML = "<p>Aucune donnée à afficher.</p>";
+                return;
+            }
+
+            const table = document.createElement('table');
+            table.className = 'table table-bordered';
+
+            // En-têtes du tableau
+            const headers = Object.keys(results[0]);
+            const headerRow = document.createElement('tr');
+            headers.forEach(header => {
+                const th = document.createElement('th');
+                th.textContent = header;
+                headerRow.appendChild(th);
+            });
+            table.appendChild(headerRow);
+
+            // Lignes de données
+            results.forEach(result => {
+                const row = document.createElement('tr');
+                headers.forEach(header => {
+                    const td = document.createElement('td');
+                    td.textContent = result[header];
+                    row.appendChild(td);
+                });
+                table.appendChild(row);
+            });
+
+            outputDiv.appendChild(table);
+        }
+
+        function exportResults(format) {
+            const outputDiv = document.getElementById('output');
+            if (!outputDiv || outputDiv.innerHTML.trim() === '') {
+                alert("Aucun résultat à exporter !");
+                return;
+            }
+
+            let results = [];
+            const rows = outputDiv.querySelectorAll('table tr');
+
+            // Récupérer les en-têtes
+            const headers = Array.from(rows[0].querySelectorAll('th')).map(th => th.textContent);
+
+            // Récupérer les données
+            for (let i = 1; i < rows.length; i++) {
+                const rowData = {};
+                const cells = rows[i].querySelectorAll('td');
+                headers.forEach((header, index) => {
+                    rowData[header] = cells[index].textContent;
+                });
+                results.push(rowData);
+            }
+
+            if (format === 'csv') {
+                exportToCSV(results);
+            } else if (format === 'json') {
+                exportToJSON(results);
+            }
+        }
+
+        // Fonction pour exporter en CSV
+        function exportToCSV(data) {
+            let csvContent = "";
+            const headers = Object.keys(data[0]).join(",") + "\n";
+            csvContent += headers;
+            data.forEach(row => {
+                csvContent += Object.values(row).join(",") + "\n";
+            });
+
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "resultats_conversion.csv";
+            link.click();
+        }
+
+        // Fonction pour exporter en JSON
+        function exportToJSON(data) {
+            const jsonContent = JSON.stringify(data, null, 4);
+            const blob = new Blob([jsonContent], { type: "application/json" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "resultats_conversion.json";
+            link.click();
+        }
+    </script>
+</body>
+</html>
